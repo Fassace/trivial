@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import splashImage from './splash.jpg';
+import React, { useState, useEffect } from "react";
+import "./App.css";
+import splashImage from "./splash.jpg";
 
 const questions = [
   {
@@ -132,16 +132,7 @@ const questions = [
 ];
 
 const prizeLadder = [
-  "₦500",
-  "₦1000",
-  "₦1500",
-  "₦2000",
-  "₦2500",
-  "₦3000",
-  "₦3500",
-  "₦4000",
-  "₦4500",
-  "₦5000"
+  "₦500", "₦1000", "₦1500", "₦2000", "₦2500", "₦3000", "₦3500", "₦4000"
 ];
 
 function App() {
@@ -153,36 +144,49 @@ function App() {
   const [feedback, setFeedback] = useState(null);
   const [fiftyUsed, setFiftyUsed] = useState(false);
   const [allowedOptions, setAllowedOptions] = useState(null);
+  const [questionStarted, setQuestionStarted] = useState(false);
+  const [answeredQuestions, setAnsweredQuestions] = useState([]);
 
+  const [dialogMessage, setDialogMessage] = useState("");
+  const [showDialog, setShowDialog] = useState(false);
+
+  // Hide splash screen after 3 seconds
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
+  // Timer effect for questions
   useEffect(() => {
-    if (showSplash || answered) return;
+    if (!questionStarted || answered) return;
     if (timeLeft === 0) {
-      setFeedback('wrong');
+      setFeedback("wrong");
       setAnswered(true);
-      setTimeout(() => nextQuestion(), 1000);
+      setAnsweredQuestions((prev) => [...new Set([...prev, currentQuestionIndex])]);
+      setDialogMessage("😬 Oops! Time's up.");
+      setShowDialog(true);
       return;
     }
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, showSplash, answered]);
+  }, [timeLeft, questionStarted, answered, currentQuestionIndex]);
 
   const currentQuestion = questions[currentQuestionIndex];
 
   const handleAnswer = (optionKey) => {
     if (answered) return;
     setAnswered(true);
+    setAnsweredQuestions((prev) => [...new Set([...prev, currentQuestionIndex])]);
+
     if (optionKey === currentQuestion.correct) {
-      setFeedback('correct');
+      setFeedback("correct");
       setScore(score + 500);
+      setDialogMessage("🎉 Correct! You just won ₦500.");
     } else {
-      setFeedback('wrong');
+      setFeedback("wrong");
+      setDialogMessage("😬 Oops! Wrong answer.");
     }
-    setTimeout(() => nextQuestion(), 1000);
+    setShowDialog(true);
   };
 
   const nextQuestion = () => {
@@ -191,21 +195,35 @@ function App() {
     setTimeLeft(30);
     setFiftyUsed(false);
     setAllowedOptions(null);
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      alert(`Game Over! Your final score is ₦${score}`);
-      setCurrentQuestionIndex(0);
-      setScore(0);
-    }
+    setQuestionStarted(false);
   };
 
   const handleFiftyFifty = () => {
     if (fiftyUsed || answered) return;
     setFiftyUsed(true);
-    const incorrectOptions = Object.keys(currentQuestion.options).filter(key => key !== currentQuestion.correct);
-    const randomIncorrect = incorrectOptions[Math.floor(Math.random() * incorrectOptions.length)];
+    const incorrectOptions = Object.keys(currentQuestion.options).filter(
+      (key) => key !== currentQuestion.correct
+    );
+    const randomIncorrect =
+      incorrectOptions[Math.floor(Math.random() * incorrectOptions.length)];
     setAllowedOptions([currentQuestion.correct, randomIncorrect]);
+  };
+
+  const selectQuestion = (index) => {
+    if (answeredQuestions.includes(index)) return;
+    setCurrentQuestionIndex(index);
+    setTimeLeft(30);
+    setAnswered(false);
+    setFeedback(null);
+    setFiftyUsed(false);
+    setAllowedOptions(null);
+    setQuestionStarted(false);
+  };
+
+  // Handler for the dialog's OK button
+  const handleDialogOk = () => {
+    setShowDialog(false);
+    nextQuestion();
   };
 
   if (showSplash) {
@@ -218,39 +236,59 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1>Who Wants to Be a Millionaire?</h1>
+      <h1>ITIEM Quiz Competition</h1>
       <div className="game">
         <div className="question-section">
-          <div className="timer">Time left: {timeLeft}s</div>
-          <div className={`question-box ${feedback === 'correct' ? 'blink-correct' : feedback === 'wrong' ? 'blink-wrong' : ''}`}>
-            {currentQuestion.question}
+          <div className="number-menu">
+            {questions.map((_, index) => (
+              <button
+                key={index}
+                className={`${currentQuestionIndex === index ? "active" : ""}`}
+                onClick={() => selectQuestion(index)}
+                disabled={answeredQuestions.includes(index)}
+              >
+                {index + 1}
+              </button>
+            ))}
           </div>
-          <div className="options">
-            {Object.entries(currentQuestion.options).map(([key, value]) => {
-              if (allowedOptions && !allowedOptions.includes(key)) return null;
-              return (
-                <button
-                  key={key}
-                  className="option-btn"
-                  onClick={() => handleAnswer(key)}
-                  disabled={answered}
-                >
-                  {key}. {value}
-                </button>
-              );
-            })}
-          </div>
-          <div className="lifelines">
-            <button className="lifeline-btn" onClick={handleFiftyFifty} disabled={fiftyUsed || answered}>
-              50-50 {fiftyUsed ? "(Used)" : ""}
+          {!questionStarted ? (
+            <button className="start-btn" onClick={() => setQuestionStarted(true)}>
+              Start Question
             </button>
-          </div>
+          ) : (
+            <>
+              <div className="timer">Time left: {timeLeft}s</div>
+              <div className={`question-box ${feedback === "correct" ? "blink-correct" : feedback === "wrong" ? "blink-wrong" : ""}`}>
+                {currentQuestion.question}
+              </div>
+              <div className="options">
+                {Object.entries(currentQuestion.options).map(([key, value]) => {
+                  if (allowedOptions && !allowedOptions.includes(key)) return null;
+                  return (
+                    <button
+                      key={key}
+                      className="option-btn"
+                      onClick={() => handleAnswer(key)}
+                      disabled={answered}
+                    >
+                      {key}. {value}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="lifelines">
+                <button className="lifeline-btn" onClick={handleFiftyFifty} disabled={fiftyUsed || answered}>
+                  50-50 {fiftyUsed ? "(Used)" : ""}
+                </button>
+              </div>
+            </>
+          )}
         </div>
         <div className="score-ladder">
           <h2>Prize Ladder</h2>
           <ul>
             {prizeLadder.map((prize, index) => (
-              <li key={index} className={index === currentQuestionIndex ? 'current-prize' : ''}>
+              <li key={index} className={index === currentQuestionIndex ? "current-prize" : ""}>
                 {prize}
               </li>
             ))}
@@ -258,6 +296,14 @@ function App() {
           <div className="score">Score: ₦{score}</div>
         </div>
       </div>
+
+      {/* Dialog Box */}
+      {showDialog && (
+        <div className="dialog-box">
+          <p>{dialogMessage}</p>
+          <button onClick={handleDialogOk}>OK</button>
+        </div>
+      )}
     </div>
   );
 }
